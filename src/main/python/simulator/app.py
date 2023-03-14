@@ -8,6 +8,7 @@ import json
 from math import sin, cos, sqrt, atan2, radians
 
 path=sys.argv[1]
+streamName=sys.argv[2]
 
 def distance(la1,lo1,la2,lo2):
   # Approximate radius of earth in km
@@ -83,11 +84,11 @@ while True:
     }
     
     # put JSON object into AWS Kinesis stream
-    #kinesis.put_record(
-    #    StreamName='bus-tracking-stream',
-    #    Data=json.dumps(event),
-    #    PartitionKey='bus-tracking'
-    #)
+    kinesis.put_record(
+        StreamName=streamName,
+        Data=json.dumps(event),
+        PartitionKey=str(random.randint(0,100))
+    )
     
     print(event)    
 
