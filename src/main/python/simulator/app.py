@@ -7,6 +7,8 @@ import json
 
 from math import sin, cos, sqrt, atan2, radians
 
+path=sys.argv[1]
+
 def distance(la1,lo1,la2,lo2):
   # Approximate radius of earth in km
   R = 6373.0
@@ -29,7 +31,7 @@ def distance(la1,lo1,la2,lo2):
 kinesis = boto3.client('kinesis', region_name='us-east-1')
 
 # read KML file containing the bus route using XML
-tree = ET.parse('./bus_route.kml')
+tree = ET.parse(path)
 root = tree.getroot()
 coordinates = []
 for element in root.iter('{http://www.opengis.net/kml/2.2}coordinates'):
