@@ -1,0 +1,282 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation Sample Template to demonstrate custom and IOT device streaming into a Kinesis stream. You will be billed for the AWS resources used if you create a stack from this template.",
+  "Parameters": {
+
+    "VpcCIDR": {
+      "Description": "Please enter the IP range (CIDR notation) for this VPC",
+      "Type": "String",
+      "Default": "10.192.0.0/16"
+    },
+    "PublicSubnet1CIDR": {
+      "Description": "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
+      "Type": "String",
+      "Default": "10.192.10.0/24"
+    },
+    "StreamName": {
+      "Description": "Must be a valid Kinesis Stream or Kafka topic name ",
+      "Default": "bus-tracking",
+      "Type": "String"
+    },
+    "Disclaimer": {
+      "Description": "This has to be true to launch.",
+      "Type": "String",
+      "AllowedValues": [
+        "False",
+        "True"
+      ],
+      "AllowedPattern": "True|true",
+      "ConstraintDescription": "Turn disclaimer flag to true to allow launching this stack."
+    }
+  },
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+            "Label": {
+              "default": "Network Configuration"
+            },
+            "Parameters": [
+              "VpcCIDR",
+              "PublicSubnet1CIDR"
+            ]
+        },
+        {
+          "Label": {
+            "default": "Kinesis Stream Name"
+          },
+          "Parameters": [
+            "StreamName"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Disclaimer"
+          },
+          "Parameters": [
+            "Disclaimer"
+          ]
+        }
+      ],
+      "ParameterLabels": {
+        "StreamName": {
+          "default": "Topic or streams name:"
+        },
+        "Disclaimer": {
+          "default": "This is an AWS CloudFormation Sample Template to demonstrate custom Apache Hbase replication endpoints. **WARNING** This template creates resources in this account ( VPC ,Private and public subnets, EMR cluster, Amazon MSK, Amazon Kinesis Data stream, Lambda functions, IAM roles and Security Groups, NAT Gateways and Internet gateway ) and takes several minutes to launch. You will be billed for the AWS resources used if you create a stack from this template."
+        },
+        "VpcCIDR": {
+          "default": "The IP CIDR of the VPC to create:"
+        },
+        "PublicSubnet1CIDR": {
+          "default": "Public subnet CIDR for EMR cluster:"
+        }
+      }
+    }
+  },
+  "Mappings": {},
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "VpcCIDR"
+        },
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true"
+      }
+    },
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "DependsOn": [ "VPC" ,"PublicSubnet1"],
+      "Properties": {}
+    },
+    "InternetGatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "DependsOn": [
+        "VPC",
+        "InternetGateway","PublicSubnet1"
+      ],
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        }
+      }
+    },
+    "PublicSubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "DependsOn": [ "VPC" ],
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PublicSubnet1CIDR"
+        },
+        "MapPublicIpOnLaunch": "true"
+      }
+    },
+    "KinesisStream": {
+      "Type": "AWS::Kinesis::Stream",
+      "Properties": {
+        "Name": {
+          "Ref": "StreamName"
+        },
+        "ShardCount": 2,
+        "StreamEncryption": {
+          "EncryptionType": "KMS",
+          "KeyId": "alias/aws/kinesis"
+        }
+      }
+    },
+    "EC2AdditionalSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "DependsOn": "VPC",
+      "Properties": {
+        "GroupDescription": "Allow SSH",
+        "VpcId": {
+          "Ref": "VPC"
+        }
+      }
+    },
+    "EC2AdditionalSecurityGroupRule": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "DependsOn": "EC2AdditionalSecurityGroup",
+      "Properties": {
+        "GroupId": {
+          "Ref": "EC2AdditionalSecurityGroup"
+        },
+        "IpProtocol": "tcp",
+        "FromPort" : "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "PublicRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "DependsOn": "VPC",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        }
+      }
+    },
+    "DefaultPublicRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": [ "InternetGatewayAttachment", "PublicRouteTable", "InternetGateway" ],
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        }
+      }
+    },
+    "PublicSubnet1RouteTableAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "DependsOn": [ "PublicRouteTable", "PublicSubnet1" ],
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PublicSubnet1"
+        }
+      }
+    },
+    "EC2KinesisWriterProfileRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "ManagedPolicyArns": [ ],
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "KinesisStreamWriteAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kinesis:PutRecord*",
+                    "kinesis:Get*",
+                    "kinesis:List*",
+                    "kinesis:Describe*"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "EC2KinesisWriterInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "EC2KinesisWriterProfileRole"
+          }
+        ]
+      }
+    },
+    "EC2Instance": {
+      "Type": "AWS::EC2::Instance",
+      "DependsOn": [ "EC2AdditionalSecurityGroup", "PublicSubnet1RouteTableAssociation", "DefaultPublicRoute" ,"EC2KinesisWriterInstanceProfile" ],
+      "Properties": {
+        "InstanceType": "t3.micro",
+        "ImageId": "ami-005f9685cb30f234b",
+        "KeyName": "ee-default-keypair",
+        "SubnetId": { "Ref": "PublicSubnet1" },
+        "SecurityGroupIds": [{ "Ref" :"EC2AdditionalSecurityGroup" }],
+        "IamInstanceProfile" : { "Ref": "EC2KinesisWriterInstanceProfile"},
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              ["#!/usr/bin/env bash\n",
+                "sudo yum update -y\n",
+                "sudo yum install -y python3 git wget\n",
+                "sudo pip3 install boto3\n",
+                "$(cd /home/ec2-user; git clone 'https://github.com/shenavaa/streaming_immersion.git')",
+                "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/app.py /home/ec2-user/streaming_immersion/src/resources/bus_route.kml ",{ "Ref": "StreamName" },"\n",
+              ]
+            ]
+          }
+        }
+      }
+    }
+  },
+  "Outputs": {}
+}
