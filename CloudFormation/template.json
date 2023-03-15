@@ -83,7 +83,13 @@
           "Ref": "VpcCIDR"
         },
         "EnableDnsSupport": "true",
-        "EnableDnsHostnames": "true"
+        "EnableDnsHostnames": "true",
+        "Tags" : [
+          {
+             "Key" : "Name",
+             "Value" : "Producer"
+          }
+        ]
       }
     },
     "InternetGateway": {
@@ -261,6 +267,12 @@
         "SubnetId": { "Ref": "PublicSubnet1" },
         "SecurityGroupIds": [{ "Ref" :"EC2AdditionalSecurityGroup" }],
         "IamInstanceProfile" : { "Ref": "EC2KinesisWriterInstanceProfile"},
+        "Tags" : [
+          {
+             "Key" : "Name",
+             "Value" : "Producer"
+          }
+        ],
         "UserData": {
           "Fn::Base64": {
             "Fn::Join": [
