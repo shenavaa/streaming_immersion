@@ -1,294 +1,696 @@
 {
-  "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "AWS CloudFormation Sample Template to demonstrate custom and IOT device streaming into a Kinesis stream. You will be billed for the AWS resources used if you create a stack from this template.",
-  "Parameters": {
-
-    "VpcCIDR": {
-      "Description": "Please enter the IP range (CIDR notation) for this VPC",
-      "Type": "String",
-      "Default": "10.192.0.0/16"
-    },
-    "PublicSubnet1CIDR": {
-      "Description": "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
-      "Type": "String",
-      "Default": "10.192.10.0/24"
-    },
-    "StreamName": {
-      "Description": "Must be a valid Kinesis Stream or Kafka topic name ",
-      "Default": "bus-tracking",
-      "Type": "String"
-    },
-    "Disclaimer": {
-      "Description": "This has to be true to launch.",
-      "Type": "String",
-      "AllowedValues": [
-        "False",
-        "True"
-      ],
-      "AllowedPattern": "True|true",
-      "ConstraintDescription": "Turn disclaimer flag to true to allow launching this stack."
-    }
-  },
-  "Metadata": {
-    "AWS::CloudFormation::Interface": {
-      "ParameterGroups": [
-        {
-            "Label": {
-              "default": "Network Configuration"
-            },
-            "Parameters": [
-              "VpcCIDR",
-              "PublicSubnet1CIDR"
-            ]
-        },
-        {
-          "Label": {
-            "default": "Kinesis Stream Name"
-          },
-          "Parameters": [
-            "StreamName"
-          ]
-        },
-        {
-          "Label": {
-            "default": "Disclaimer"
-          },
-          "Parameters": [
-            "Disclaimer"
-          ]
-        }
-      ],
-      "ParameterLabels": {
-        "StreamName": {
-          "default": "Topic or streams name:"
-        },
-        "Disclaimer": {
-          "default": "This is an AWS CloudFormation Sample Template to demonstrate custom Apache Hbase replication endpoints. **WARNING** This template creates resources in this account ( VPC ,Private and public subnets, EMR cluster, Amazon MSK, Amazon Kinesis Data stream, Lambda functions, IAM roles and Security Groups, NAT Gateways and Internet gateway ) and takes several minutes to launch. You will be billed for the AWS resources used if you create a stack from this template."
-        },
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS CloudFormation Sample Template to demonstrate custom and IOT device streaming into a Kinesis stream. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Parameters": {
         "VpcCIDR": {
-          "default": "The IP CIDR of the VPC to create:"
+            "Description": "Please enter the IP range (CIDR notation) for this VPC",
+            "Type": "String",
+            "Default": "10.192.0.0/16"
         },
         "PublicSubnet1CIDR": {
-          "default": "Public subnet CIDR for EMR cluster:"
+            "Description": "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
+            "Type": "String",
+            "Default": "10.192.10.0/24"
+        },
+        "PublicSubnet2CIDR": {
+            "Description": "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
+            "Type": "String",
+            "Default": "10.192.20.0/24"
+        },
+        "StreamName": {
+            "Description": "Must be a valid Kinesis Stream or Kafka topic name ",
+            "Default": "bus-tracking",
+            "Type": "String"
+        },
+        "pDbName": {
+            "Type": "String",
+            "Default": "DriversDB"
+        },
+        "pDbUser": {
+            "Type": "String",
+            "Default": "dbadminuser"
+        },
+        "pDbPass": {
+            "Type": "String",
+            "Default": "Random$trongPa33word",
+            "Description": "It should be less than 8 characters"
+        },
+        "Disclaimer": {
+            "Description": "This has to be true to launch.",
+            "Type": "String",
+            "AllowedValues": [
+                "False",
+                "True"
+            ],
+            "AllowedPattern": "True|true",
+            "ConstraintDescription": "Turn disclaimer flag to true to allow launching this stack."
         }
-      }
-    }
-  },
-  "Mappings": {},
-  "Resources": {
-    "VPC": {
-      "Type": "AWS::EC2::VPC",
-      "Properties": {
-        "CidrBlock": {
-          "Ref": "VpcCIDR"
-        },
-        "EnableDnsSupport": "true",
-        "EnableDnsHostnames": "true",
-        "Tags" : [
-          {
-             "Key" : "Name",
-             "Value" : "Producer"
-          }
-        ]
-      }
     },
-    "InternetGateway": {
-      "Type": "AWS::EC2::InternetGateway",
-      "DependsOn": [ "VPC" ,"PublicSubnet1"],
-      "Properties": {}
-    },
-    "InternetGatewayAttachment": {
-      "Type": "AWS::EC2::VPCGatewayAttachment",
-      "DependsOn": [
-        "VPC",
-        "InternetGateway","PublicSubnet1"
-      ],
-      "Properties": {
-        "InternetGatewayId": {
-          "Ref": "InternetGateway"
-        },
-        "VpcId": {
-          "Ref": "VPC"
-        }
-      }
-    },
-    "PublicSubnet1": {
-      "Type": "AWS::EC2::Subnet",
-      "DependsOn": [ "VPC" ],
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPC"
-        },
-        "AvailabilityZone": {
-          "Fn::Select": [
-            0,
-            {
-              "Fn::GetAZs": ""
-            }
-          ]
-        },
-        "CidrBlock": {
-          "Ref": "PublicSubnet1CIDR"
-        },
-        "MapPublicIpOnLaunch": "true"
-      }
-    },
-    "KinesisStream": {
-      "Type": "AWS::Kinesis::Stream",
-      "Properties": {
-        "Name": {
-          "Ref": "StreamName"
-        },
-        "ShardCount": 2,
-        "StreamEncryption": {
-          "EncryptionType": "KMS",
-          "KeyId": "alias/aws/kinesis"
-        }
-      }
-    },
-    "EC2AdditionalSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "DependsOn": "VPC",
-      "Properties": {
-        "GroupDescription": "Allow SSH",
-        "VpcId": {
-          "Ref": "VPC"
-        }
-      }
-    },
-    "EC2AdditionalSecurityGroupRule": {
-      "Type": "AWS::EC2::SecurityGroupIngress",
-      "DependsOn": "EC2AdditionalSecurityGroup",
-      "Properties": {
-        "GroupId": {
-          "Ref": "EC2AdditionalSecurityGroup"
-        },
-        "IpProtocol": "tcp",
-        "FromPort" : "22",
-        "ToPort": "22",
-        "CidrIp": "0.0.0.0/0"
-      }
-    },
-    "PublicRouteTable": {
-      "Type": "AWS::EC2::RouteTable",
-      "DependsOn": "VPC",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPC"
-        }
-      }
-    },
-    "DefaultPublicRoute": {
-      "Type": "AWS::EC2::Route",
-      "DependsOn": [ "InternetGatewayAttachment", "PublicRouteTable", "InternetGateway" ],
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "PublicRouteTable"
-        },
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "InternetGateway"
-        }
-      }
-    },
-    "PublicSubnet1RouteTableAssociation": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "DependsOn": [ "PublicRouteTable", "PublicSubnet1" ],
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "PublicRouteTable"
-        },
-        "SubnetId": {
-          "Ref": "PublicSubnet1"
-        }
-      }
-    },
-    "EC2KinesisWriterProfileRole": {
-      "Type": "AWS::IAM::Role",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Allow",
-              "Principal": {
-                "Service": [
-                  "ec2.amazonaws.com"
-                ]
-              },
-              "Action": [
-                "sts:AssumeRole"
-              ]
-            }
-          ]
-        },
-        "ManagedPolicyArns": [ ],
-        "Path": "/",
-        "Policies": [
-          {
-            "PolicyName": "KinesisStreamWriteAccess",
-            "PolicyDocument": {
-              "Version": "2012-10-17",
-              "Statement": [
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
                 {
-                  "Effect": "Allow",
-                  "Action": [
-                    "kinesis:PutRecord*",
-                    "kinesis:Get*",
-                    "kinesis:List*",
-                    "kinesis:Describe*"
-                  ],
-                  "Resource": "*"
+                    "Label": {
+                        "default": "Network Configuration"
+                    },
+                    "Parameters": [
+                        "VpcCIDR",
+                        "PublicSubnet1CIDR",
+                        "PublicSubnet2CIDR"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Kinesis Stream Name"
+                    },
+                    "Parameters": [
+                        "StreamName"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Disclaimer"
+                    },
+                    "Parameters": [
+                        "Disclaimer"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Database name, username and password"
+                    },
+                    "Parameters": [
+                        "pDbUser",
+                        "pDbPass",
+                        "pDbName"
+                    ]
                 }
-              ]
+            ],
+            "ParameterLabels": {
+                "StreamName": {
+                    "default": "Topic or streams name:"
+                },
+                "Disclaimer": {
+                    "default": "This is an AWS CloudFormation Sample Template to demonstrate custom Apache Hbase replication endpoints. **WARNING** This template creates resources in this account ( VPC ,Private and public subnets, EMR cluster, Amazon MSK, Amazon Kinesis Data stream, Lambda functions, IAM roles and Security Groups, NAT Gateways and Internet gateway ) and takes several minutes to launch. You will be billed for the AWS resources used if you create a stack from this template."
+                },
+                "VpcCIDR": {
+                    "default": "The IP CIDR of the VPC to create:"
+                },
+                "PublicSubnet1CIDR": {
+                    "default": "Public subnet CIDR for EMR cluster:"
+                }
             }
-          }
-        ]
-      }
-    },
-    "EC2KinesisWriterInstanceProfile": {
-      "Type": "AWS::IAM::InstanceProfile",
-      "Properties": {
-        "Path": "/",
-        "Roles": [
-          {
-            "Ref": "EC2KinesisWriterProfileRole"
-          }
-        ]
-      }
-    },
-    "EC2Instance": {
-      "Type": "AWS::EC2::Instance",
-      "DependsOn": [ "EC2AdditionalSecurityGroup", "PublicSubnet1RouteTableAssociation", "DefaultPublicRoute" ,"EC2KinesisWriterInstanceProfile" ],
-      "Properties": {
-        "InstanceType": "t3.micro",
-        "ImageId": "ami-005f9685cb30f234b",
-        "KeyName": "ee-default-keypair",
-        "SubnetId": { "Ref": "PublicSubnet1" },
-        "SecurityGroupIds": [{ "Ref" :"EC2AdditionalSecurityGroup" }],
-        "IamInstanceProfile" : { "Ref": "EC2KinesisWriterInstanceProfile"},
-        "Tags" : [
-          {
-             "Key" : "Name",
-             "Value" : "Producer"
-          }
-        ],
-        "UserData": {
-          "Fn::Base64": {
-            "Fn::Join": [
-              "",
-              ["#!/usr/bin/env bash\n",
-                "sudo yum update -y\n",
-                "sudo yum install -y python3 git wget\n",
-                "sudo pip3 install boto3\n",
-                "$(cd /home/ec2-user; git clone 'https://github.com/shenavaa/streaming_immersion.git')",
-                "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/app.py /home/ec2-user/streaming_immersion/src/resources/bus_route.kml ",{ "Ref": "StreamName" },"\n",
-              ]
-            ]
-          }
+        },
+        "AWS::CloudFormation::Designer": {
+            "1a09b495-17b4-4c3e-97e5-eb467840461c": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 570,
+                    "y": 390
+                },
+                "z": 1,
+                "embeds": []
+            },
+            "5548a1e5-4020-4c12-bb7d-2c7e6d478dac": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 570,
+                    "y": 510
+                },
+                "z": 1,
+                "embeds": []
+            },
+            "8da4e8f8-db87-4fce-8131-21ce0b12c0be": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 660,
+                    "y": 90
+                },
+                "z": 1,
+                "embeds": []
+            },
+            "bf44b98b-a773-47b4-bbd1-7d2a0a5daaaf": {
+                "size": {
+                    "width": 240,
+                    "height": 240
+                },
+                "position": {
+                    "x": 60,
+                    "y": 390
+                },
+                "z": 1,
+                "embeds": [
+                    "083e7310-4462-4651-9935-370261edd9cd"
+                ]
+            },
+            "8997c7d3-b496-4170-a033-7714c6c3979f": {
+                "size": {
+                    "width": 240,
+                    "height": 240
+                },
+                "position": {
+                    "x": 360,
+                    "y": 90
+                },
+                "z": 1,
+                "embeds": [
+                    "4f4f3448-2720-41e7-8aa2-f622504e315b"
+                ]
+            },
+            "083e7310-4462-4651-9935-370261edd9cd": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 90,
+                    "y": 450
+                },
+                "z": 2,
+                "parent": "bf44b98b-a773-47b4-bbd1-7d2a0a5daaaf",
+                "embeds": [],
+                "dependson": [
+                    "bf44b98b-a773-47b4-bbd1-7d2a0a5daaaf"
+                ]
+            },
+            "f54376f3-4811-429b-8285-acc4f218ada1": {
+                "size": {
+                    "width": 240,
+                    "height": 240
+                },
+                "position": {
+                    "x": 60,
+                    "y": 90
+                },
+                "z": 1,
+                "embeds": [
+                    "f402ae9a-e3cc-497b-b989-42d840da7403"
+                ]
+            },
+            "cbb1876f-001b-4eb8-961d-b3f769894968": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 700,
+                    "y": 320
+                },
+                "z": 0,
+                "embeds": [],
+                "dependson": [
+                    "f54376f3-4811-429b-8285-acc4f218ada1"
+                ]
+            },
+            "4fb807d7-8270-430f-ada2-3a07e1fce0df": {
+                "size": {
+                    "width": 150,
+                    "height": 150
+                },
+                "position": {
+                    "x": 360,
+                    "y": 390
+                },
+                "z": 1,
+                "embeds": []
+            },
+            "ed2853b9-8e5b-4b31-9576-702d8e523af1": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 360,
+                    "y": 600
+                },
+                "z": 1,
+                "embeds": [],
+                "dependson": [
+                    "bf44b98b-a773-47b4-bbd1-7d2a0a5daaaf",
+                    "f54376f3-4811-429b-8285-acc4f218ada1"
+                ]
+            },
+            "20c3bd74-ebaf-4b92-981d-1ecd530265c1": {
+                "source": {
+                    "id": "bf44b98b-a773-47b4-bbd1-7d2a0a5daaaf"
+                },
+                "target": {
+                    "id": "ed2853b9-8e5b-4b31-9576-702d8e523af1"
+                },
+                "z": 1
+            },
+            "4f4f3448-2720-41e7-8aa2-f622504e315b": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 390,
+                    "y": 150
+                },
+                "z": 2,
+                "parent": "8997c7d3-b496-4170-a033-7714c6c3979f",
+                "embeds": [],
+                "dependson": [
+                    "20c3bd74-ebaf-4b92-981d-1ecd530265c1",
+                    "8997c7d3-b496-4170-a033-7714c6c3979f",
+                    "ed2853b9-8e5b-4b31-9576-702d8e523af1"
+                ]
+            },
+            "f402ae9a-e3cc-497b-b989-42d840da7403": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 90,
+                    "y": 150
+                },
+                "z": 2,
+                "parent": "f54376f3-4811-429b-8285-acc4f218ada1",
+                "embeds": [],
+                "iscontainedinside": [
+                    "f54376f3-4811-429b-8285-acc4f218ada1",
+                    "f54376f3-4811-429b-8285-acc4f218ada1"
+                ],
+                "dependson": [
+                    "4f4f3448-2720-41e7-8aa2-f622504e315b",
+                    "083e7310-4462-4651-9935-370261edd9cd"
+                ]
+            }
         }
-      }
-    }
-  },
-  "Outputs": {}
+    },
+    "Mappings": {},
+    "Resources": {
+        "VPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": {
+                    "Ref": "VpcCIDR"
+                },
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames": "true",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Producer"
+                    }
+                ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "bf44b98b-a773-47b4-bbd1-7d2a0a5daaaf"
+                }
+            }
+        },
+        "InternetGateway": {
+            "Type": "AWS::EC2::InternetGateway",
+            "DependsOn": [
+                "VPC",
+                "PublicSubnet1"
+            ],
+            "Properties": {},
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "ed2853b9-8e5b-4b31-9576-702d8e523af1"
+                }
+            }
+        },
+        "InternetGatewayAttachment": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "DependsOn": [
+                "VPC",
+                "InternetGateway",
+                "PublicSubnet1"
+            ],
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "20c3bd74-ebaf-4b92-981d-1ecd530265c1"
+                }
+            }
+        },
+        "PublicSubnet1": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": [
+                "VPC"
+            ],
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Ref": "PublicSubnet1CIDR"
+                },
+                "MapPublicIpOnLaunch": "true"
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "f54376f3-4811-429b-8285-acc4f218ada1"
+                }
+            }
+        },
+        "PublicSubnet2": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": [
+                "VPC"
+            ],
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Ref": "PublicSubnet2CIDR"
+                },
+                "MapPublicIpOnLaunch": "true"
+            }
+        },
+        "KinesisStream": {
+            "Type": "AWS::Kinesis::Stream",
+            "Properties": {
+                "Name": {
+                    "Ref": "StreamName"
+                },
+                "ShardCount": 2,
+                "StreamEncryption": {
+                    "EncryptionType": "KMS",
+                    "KeyId": "alias/aws/kinesis"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "8da4e8f8-db87-4fce-8131-21ce0b12c0be"
+                }
+            }
+        },
+        "EC2AdditionalSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "DependsOn": "VPC",
+            "Properties": {
+                "GroupDescription": "Allow SSH",
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "083e7310-4462-4651-9935-370261edd9cd"
+                }
+            }
+        },
+        "EC2AdditionalSecurityGroupRule": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "DependsOn": "EC2AdditionalSecurityGroup",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "EC2AdditionalSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "22",
+                "ToPort": "22",
+                "CidrIp": "0.0.0.0/0"
+            }
+        },
+        "PublicRouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "DependsOn": "VPC",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "8997c7d3-b496-4170-a033-7714c6c3979f"
+                }
+            }
+        },
+        "DefaultPublicRoute": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": [
+                "InternetGatewayAttachment",
+                "PublicRouteTable",
+                "InternetGateway"
+            ],
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "4f4f3448-2720-41e7-8aa2-f622504e315b"
+                }
+            }
+        },
+        "PublicSubnet1RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "DependsOn": [
+                "PublicRouteTable",
+                "PublicSubnet1"
+            ],
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1"
+                }
+            }
+        },
+        "PublicSubnet2RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "DependsOn": [
+                "PublicRouteTable",
+                "PublicSubnet2"
+            ],
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet2"
+                }
+            }
+        },
+        "EC2KinesisWriterProfileRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "ManagedPolicyArns": [],
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyName": "KinesisStreamWriteAccess",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "kinesis:PutRecord*",
+                                        "kinesis:Get*",
+                                        "kinesis:List*",
+                                        "kinesis:Describe*"
+                                    ],
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "1a09b495-17b4-4c3e-97e5-eb467840461c"
+                }
+            }
+        },
+        "EC2KinesisWriterInstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "EC2KinesisWriterProfileRole"
+                    }
+                ]
+            },
+            "Metadata": { }
+        },
+        "DBSUbnetGroup": {
+            "Type": "AWS::RDS::DBSubnetGroup",
+            "Properties": {
+                "DBSubnetGroupDescription": "RDS Group",
+                "DBSubnetGroupName": "RDSGroup",
+                "SubnetIds": [ { "Ref": "PublicSubnet1" },  { "Ref": "PublicSubnet2" } ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "4fb807d7-8270-430f-ada2-3a07e1fce0df"
+                }
+            }
+        },
+        "DbSecurityByEC2SecurityGroup" : {
+         "Type" : "AWS::RDS::DBSecurityGroup",
+         "Properties" : {
+            "GroupDescription" : "Ingress for Amazon EC2 security group",
+            "EC2VpcId" : { "Ref" : "VPC" },
+            "DBSecurityGroupIngress" : [ {
+               "EC2SecurityGroupId" : {"Ref":"EC2AdditionalSecurityGroup"}
+              
+            }]
+         }
+      },
+        "SQLDbInstance": {
+            "Type": "AWS::RDS::DBInstance",
+            "DependsOn": [
+                "PublicSubnet1"
+            ],
+            "Properties": {
+                "DBName": {
+                    "Ref": "pDbName"
+                },
+                "MasterUsername": {
+                    "Ref": "pDbUser"
+                },
+                "MasterUserPassword": {
+                    "Ref": "pDbPass"
+                },
+                "Engine": "MySQL",
+                "DBSubnetGroupName": {
+                    "Ref": "DBSUbnetGroup"
+                },
+                "DBSecurityGroups": [ {"Ref":"DbSecurityByEC2SecurityGroup"}],
+                "DBInstanceClass": "db.r6g.large",
+                "StorageType": "gp2",
+                "PubliclyAccessible": true,
+                "AllocatedStorage": "20",
+                "DBInstanceIdentifier": {
+                    "Fn::Join": [
+                        "-",
+                        [
+                            "SQLShackDemoDbInstance",
+                            {
+                                "Ref": "AWS::Region"
+                            }
+                        ]
+                    ]
+                },
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                }
+            },
+            "Metadata": { }
+        },
+        "EC2Instance": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": [
+                "EC2AdditionalSecurityGroup",
+                "PublicSubnet1RouteTableAssociation",
+                "DefaultPublicRoute",
+                "EC2KinesisWriterInstanceProfile"
+            ],
+            "Properties": {
+                "InstanceType": "t3.micro",
+                "ImageId": "ami-005f9685cb30f234b",
+                "KeyName": "ee-default-keypair",
+                "SubnetId": {
+                    "Ref": "PublicSubnet1"
+                },
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "EC2AdditionalSecurityGroup"
+                    }
+                ],
+                "IamInstanceProfile": {
+                    "Ref": "EC2KinesisWriterInstanceProfile"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Producer"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/usr/bin/env bash\n",
+                                "sudo yum update -y\n",
+                                "sudo yum install -y python3 git wget jq mysql-devel\n",
+                                "sudo pip3 install boto3 pandas sqlalchemy mysql\n",
+                                "$(cd /home/ec2-user; git clone 'https://github.com/shenavaa/streaming_immersion.git')\n",
+                                "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/populatedb.py /home/ec2-user/streaming_immersion/src/resources/driver_schedule.csv ",{"Ref": "SQLDbInstance"}," ",{"Ref":"pDbUser"}," ",{"Ref":"pDbPass"}," \n",
+                                "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/app.py /home/ec2-user/streaming_immersion/src/resources/bus_route.kml ",{"Ref": "StreamName"},"\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "f402ae9a-e3cc-497b-b989-42d840da7403"
+                }
+            }
+        }
+    },
+    "Outputs": {}
 }
