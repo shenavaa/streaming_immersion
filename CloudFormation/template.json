@@ -675,7 +675,7 @@
                             [
                                 "#!/usr/bin/env bash\n",
                                 "sudo yum update -y\n",
-                                "sudo yum install -y python3 git wget jq mysql-devel\n",
+                                "sudo yum install -y python3 git wget jq mysql-devel gcc\n",
                                 "sudo pip3 install boto3 pandas sqlalchemy mysql\n",
                                 "$(cd /home/ec2-user; git clone 'https://github.com/shenavaa/streaming_immersion.git')\n",
                                 "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/populatedb.py /home/ec2-user/streaming_immersion/src/resources/driver_schedule.csv ",{"Ref": "SQLDbInstance"}," ",{"Ref":"pDbUser"}," ",{"Ref":"pDbPass"}," \n",
