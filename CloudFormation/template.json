@@ -542,7 +542,8 @@
                                         "kinesis:PutRecord*",
                                         "kinesis:Get*",
                                         "kinesis:List*",
-                                        "kinesis:Describe*"
+                                        "kinesis:Describe*",
+                                        "rds:*"
                                     ],
                                     "Resource": "*"
                                 }
@@ -621,10 +622,8 @@
                     "Fn::Join": [
                         "-",
                         [
-                            "SQLShackDemoDbInstance",
-                            {
-                                "Ref": "AWS::Region"
-                            }
+                            { "Ref": "pDbName" },
+                            { "Ref": "AWS::Region" }
                         ]
                     ]
                 },
@@ -678,7 +677,7 @@
                                 "sudo yum install -y python3 git wget jq mysql-devel gcc\n",
                                 "sudo pip3 install boto3 pandas sqlalchemy mysql\n",
                                 "$(cd /home/ec2-user; git clone 'https://github.com/shenavaa/streaming_immersion.git')\n",
-                                "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/populatedb.py /home/ec2-user/streaming_immersion/src/resources/driver_schedule.csv ",{"Ref": "SQLDbInstance"}," ",{"Ref":"pDbUser"}," ",{"Ref":"pDbPass"}," \n",
+                                "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/populatedb.py /home/ec2-user/streaming_immersion/src/resources/driver_schedule.csv ",{"Ref": "SQLDbInstance"}," ",{"Ref":"pDbUser"}," ",{"Ref":"pDbPass"}," ",{"Ref":"pDbName"}," \n",
                                 "python3 /home/ec2-user/streaming_immersion/src/main/python/simulator/app.py /home/ec2-user/streaming_immersion/src/resources/bus_route.kml ",{"Ref": "StreamName"},"\n"
                             ]
                         ]

@@ -8,6 +8,7 @@ csvFile=sys.argv[1]
 dbIdentifier=sys.argv[2]
 mysqlUser=sys.argv[3]
 mysqlPass=sys.argv[4]
+mysqlDBName=sys.argv[5]
 
 my_config = Config(
     region_name = 'us-east-1'
@@ -34,5 +35,5 @@ def get_rds_endpoint(db_identifier):
 
 
 endpoint = get_rds_endpoint(dbIdentifier)
-csv_to_mysql(csvFile,"drivers",mysqlUser,mysqlPass,endpoint,3306,"mydb")
+csv_to_mysql(csvFile,"drivers",mysqlUser,mysqlPass,endpoint,3306,mysqlDBName)
 

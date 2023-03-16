@@ -80,7 +80,8 @@ while True:
         'latitude': lat,
         'longitude': lon,
         'timestamp': int(time.time()),
-        'index': index
+        'index': index,
+        'driver': 1
     }
     
     # put JSON object into AWS Kinesis stream
